@@ -1,0 +1,13 @@
+#!/usr/bin/env python3
+"""Quickadmin: scoped mDNS/SSH administration."""
+
+from pathlib import Path
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from quickflash.admin_cli import main
+from quickflash.cli import run
+
+
+if __name__ == "__main__":
+    run(main, "quickadmin")
