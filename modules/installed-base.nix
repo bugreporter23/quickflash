@@ -1,0 +1,50 @@
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
+let
+  storage = import ../disk/install-zfs.nix;
+  mounted = lib.filterAttrs (_: dataset: dataset ? mountpoint) storage.datasets;
+in
+{
+  imports = [
+    ./base.nix
+  ];
+  users.mutableUsers = true;
+  users.users.root.initialHashedPassword = lib.mkDefault "!";
+  environment.systemPackages = [
+    (pkgs.writeShellApplication {
+      name = "quickflash-remove-key";
+      runtimeInputs = [
+        pkgs.python3
+        config.system.build.nixos-rebuild
+      ];
+      text = ''
+        exec python3 ${./remove_key.py} "$@"
+      '';
+    })
+  ];
+  boot.supportedFilesystems = [ "zfs" ];
+  boot.zfs.forceImportRoot = false;
+  boot.loader.systemd-boot.enable = true;
+  boot.loader.efi.canTouchEfiVariables = true;
+  fileSystems =
+    lib.listToAttrs (
+      lib.mapAttrsToList (name: dataset: {
+        name = dataset.mountpoint;
+        value = {
+          device = "${storage.pool}/${name}";
+          fsType = "zfs";
+        };
+      }) mounted
+    )
+    // {
+      "/boot" = {
+        device = "/dev/disk/by-partlabel/${storage.espLabel}";
+        fsType = "vfat";
+        options = [ "umask=0077" ];
+      };
+    };
+}
